@@ -3,7 +3,7 @@ const userServices = require('./users.services');
 const passportJwt = require('../middlewares/auth.middleware');
 const upload = require('../utils/multer');
 const multerErrorHandler = require('../middlewares/multerErrorHandler');
-const { uploadImage } = require('../utils/cloudinary'); // Asegúrate de tener este archivo
+const { uploadImage } = require('../utils/cloudinary');
 
 // Rutas públicas
 router.route('/')
@@ -20,10 +20,10 @@ router.route('/')
           profileImageUrl = await uploadImage(fileStr);
         }
 
-        const newUser = await userServices.createNewUser({ // Cambié usersControllers por userServices
+        const newUser = await userServices.postNewUser({ 
           ...req.body,
           profileImage: profileImageUrl
-        });
+        }, req.file);
         
         res.status(201).json(newUser);
       } catch (error) {
