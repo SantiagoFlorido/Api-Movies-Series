@@ -2,48 +2,41 @@ const router = require('express').Router();
 const userServices = require('./users.services');
 const passportJwt = require('../middlewares/auth.middleware');
 const upload = require('../utils/multer');
-const multerErrorHandler = require('../middlewares/multerErrorHandler'); // Nuevo middleware para errores
-
-const multer = require('multer');
-
-
-
-
+const multerErrorHandler = require('../middlewares/multerErrorHandler');
+const { uploadImage } = require('../utils/cloudinary'); // Asegúrate de tener este archivo
 
 // Rutas públicas
 router.route('/')
   .get(userServices.getAllUsers)
   .post(
-    upload.single('profileImage'), // Middleware Multer modificado
-  async (req, res) => {
-    try {
-      // Verificar si hay archivo
-      const file = req.file;
-      let profileImageUrl = null;
-      
-      if (file) {
-        // Convertir buffer a formato que Cloudinary pueda procesar
-        const fileStr = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
-        profileImageUrl = await uploadImage(fileStr); // Usa tu función Cloudinary
-      }
+    upload.single('profileImage'),
+    async (req, res) => {
+      try {
+        const file = req.file;
+        let profileImageUrl = null;
+        
+        if (file) {
+          const fileStr = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+          profileImageUrl = await uploadImage(fileStr);
+        }
 
-      const newUser = await usersControllers.createNewUser({
-        ...req.body,
-        profileImage: profileImageUrl
-      });
-      
-      res.status(201).json(newUser);
-    } catch (error) {
-      console.error('Error:', error);
-      res.status(400).json({ 
-        message: error.message || 'Error al procesar la solicitud'
-      });
+        const newUser = await userServices.createNewUser({ // Cambié usersControllers por userServices
+          ...req.body,
+          profileImage: profileImageUrl
+        });
+        
+        res.status(201).json(newUser);
+      } catch (error) {
+        console.error('Error:', error);
+        res.status(400).json({ 
+          message: error.message || 'Error al procesar la solicitud'
+        });
+      }
     }
-  }       // Controlador
   );
 
 // Rutas protegidas (requieren autenticación JWT)
-router.use(passportJwt); // Aplica autenticación JWT a todas las rutas siguientes
+router.use(passportJwt);
 
 router.route('/me')
   .get(userServices.getMyUser)
