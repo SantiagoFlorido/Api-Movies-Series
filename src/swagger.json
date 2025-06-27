@@ -9,6 +9,10 @@
     {
       "url": "http://localhost:9000",
       "description": "Servidor local de desarrollo"
+    },
+    {
+      "url": "https://api-movies-series.onrender.com/",
+      "description": "Servidor de despliegue"
     }
   ],
   "paths": {
