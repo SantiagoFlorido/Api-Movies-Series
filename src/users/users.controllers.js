@@ -3,13 +3,16 @@ const uuid = require('uuid');
 const fs = require('fs');
 const path = require('path');
 const { hashPassword } = require('../utils/crypto');
-const { uploadImage } = require('../utils/cloudinary');
+const { uploadImage, deleteImage } = require('../utils/cloudinary'); // Añadido deleteImage
 
-const findAllUser = async () => {
+const findAllUser = async (limit = 10, offset = 0) => {
     const data = await Users.findAll({
+        limit: parseInt(limit),
+        offset: parseInt(offset),
         attributes: {
-            exclude: ['password']
-        }
+            exclude: ['password', 'createdAt', 'updatedAt']
+        },
+        order: [['createdAt', 'DESC']]
     });
     return data;
 };
@@ -20,7 +23,7 @@ const findUserById = async (id) => {
             id: id
         },
         attributes: {
-            exclude: ['password']
+            exclude: ['password', 'createdAt', 'updatedAt']
         }
     });
     return data;
@@ -36,119 +39,161 @@ const findUserByEmail = async (email) => {
 };
 
 const createNewUser = async (userObj, file) => {
-    const newUser = {
-        id: uuid.v4(),
-        firstName: userObj.firstName,
-        lastName: userObj.lastName,
-        email: userObj.email,
-        password: hashPassword(userObj.password),
-        gender: userObj.gender || null,
-        birthday: userObj.birthday || null,
-        profileImage: null, // Inicialmente null
-        role: userObj.role || 'normal',
-        status: userObj.status || 'active'
-    };
-    
-    // Si hay archivo, lo subimos a Cloudinary
-    if (file) {
-        try {
-            // Subir imagen a Cloudinary
-            const imageUrl = await uploadImage(file.path);
-            newUser.profileImage = imageUrl;
-            
-            // Eliminar el archivo temporal después de subirlo
-            fs.unlink(file.path, (err) => {
-                if (err) console.error('Error deleting temp file:', err);
-            });
-        } catch (error) {
-            console.error('Error uploading image:', error);
-            // Si falla la subida, eliminamos el archivo temporal si existe
-            if (file.path && fs.existsSync(file.path)) {
-                fs.unlinkSync(file.path);
-            }
-            throw new Error('Failed to upload profile image');
-        }
-    }
+    const transaction = await Users.sequelize.transaction();
     
     try {
-        const data = await Users.create(newUser);
-        const userWithoutPassword = data.toJSON();
-        delete userWithoutPassword.password;
-        return userWithoutPassword;
-    } catch (error) {
-        // Si hay error al crear el usuario, eliminamos la imagen de Cloudinary si se subió
-        if (newUser.profileImage) {
-            // Aquí podrías implementar lógica para eliminar de Cloudinary
-            console.warn('User creation failed, but image was uploaded to Cloudinary:', newUser.profileImage);
+        const newUser = {
+            id: uuid.v4(),
+            firstName: userObj.firstName.trim(),
+            lastName: userObj.lastName.trim(),
+            email: userObj.email.toLowerCase().trim(),
+            password: hashPassword(userObj.password),
+            gender: userObj.gender || null,
+            birthday: userObj.birthday || null,
+            profileImage: null,
+            role: userObj.role || 'normal',
+            status: userObj.status || 'active'
+        };
+        
+        // Handle file upload
+        if (file) {
+            try {
+                const imageUrl = await uploadImage(file.path);
+                newUser.profileImage = imageUrl;
+                
+                // Delete temp file
+                fs.unlinkSync(file.path);
+            } catch (uploadError) {
+                console.error('Cloudinary upload error:', uploadError);
+                if (file.path && fs.existsSync(file.path)) {
+                    fs.unlinkSync(file.path);
+                }
+                throw new Error('Error al subir la imagen de perfil');
+            }
         }
-        throw error;
+        
+        const createdUser = await Users.create(newUser, { transaction });
+        const userResponse = createdUser.toJSON();
+        delete userResponse.password;
+        
+        await transaction.commit();
+        return userResponse;
+        
+    } catch (error) {
+        await transaction.rollback();
+        console.error('User creation error:', error);
+        
+        // Cleanup if user creation fails but image was uploaded
+        if (file && file.path && fs.existsSync(file.path)) {
+            fs.unlinkSync(file.path);
+        }
+        
+        throw new Error(error.message || 'Error al crear el usuario');
     }
 };
 
 const updateUser = async (id, userObj, file) => {
-    // Handle password update
-    if (userObj.password) {
-        userObj.password = hashPassword(userObj.password);
-    }
+    const transaction = await Users.sequelize.transaction();
     
-    // Handle profile image upload
-    if (file) {
-        try {
-            // Subir nueva imagen a Cloudinary
-            const imageUrl = await uploadImage(file.path);
-            userObj.profileImage = imageUrl;
-            
-            // Eliminar el archivo temporal después de subirlo
-            fs.unlink(file.path, (err) => {
-                if (err) console.error('Error deleting temp file:', err);
-            });
-            
-            // Obtener usuario actual para eliminar la imagen anterior de Cloudinary
-            const currentUser = await findUserById(id);
-            if (currentUser && currentUser.profileImage) {
-                // Aquí podrías implementar lógica para eliminar la imagen anterior de Cloudinary
-                console.log('Old profile image that should be deleted:', currentUser.profileImage);
-            }
-        } catch (error) {
-            console.error('Error uploading image:', error);
-            // Si falla la subida, eliminamos el archivo temporal si existe
-            if (file.path && fs.existsSync(file.path)) {
+    try {
+        const currentUser = await findUserById(id);
+        if (!currentUser) {
+            throw new Error('Usuario no encontrado');
+        }
+        
+        const updateData = {
+            firstName: userObj.firstName ? userObj.firstName.trim() : currentUser.firstName,
+            lastName: userObj.lastName ? userObj.lastName.trim() : currentUser.lastName,
+            email: userObj.email ? userObj.email.toLowerCase().trim() : currentUser.email,
+            gender: userObj.gender || currentUser.gender || null,
+            birthday: userObj.birthday || currentUser.birthday || null,
+            role: userObj.role || currentUser.role,
+            status: userObj.status || currentUser.status
+        };
+        
+        if (userObj.password) {
+            updateData.password = hashPassword(userObj.password);
+        }
+        
+        // Handle profile image update
+        if (file) {
+            try {
+                // Upload new image
+                const imageUrl = await uploadImage(file.path);
+                updateData.profileImage = imageUrl;
+                
+                // Delete temp file
                 fs.unlinkSync(file.path);
+                
+                // Delete old image from Cloudinary if exists
+                if (currentUser.profileImage) {
+                    await deleteImage(currentUser.profileImage);
+                }
+            } catch (uploadError) {
+                console.error('Image upload error:', uploadError);
+                if (file.path && fs.existsSync(file.path)) {
+                    fs.unlinkSync(file.path);
+                }
+                throw new Error('Error al actualizar la imagen de perfil');
             }
-            throw new Error('Failed to upload profile image');
         }
-    }
-    
-    const [affectedRows] = await Users.update(userObj, {
-        where: {
-            id: id
+        
+        const [affectedRows] = await Users.update(updateData, {
+            where: { id: id },
+            transaction
+        });
+        
+        if (affectedRows === 0) {
+            throw new Error('No se pudo actualizar el usuario');
         }
-    });
-    
-    if (affectedRows > 0) {
+        
         const updatedUser = await findUserById(id);
+        await transaction.commit();
         return updatedUser;
+        
+    } catch (error) {
+        await transaction.rollback();
+        console.error('Update user error:', error);
+        throw error;
     }
-    
-    return null;
 };
 
 const deleteUser = async (id) => {
-    // Opcional: Obtener usuario antes de borrar para eliminar su imagen de Cloudinary
-    const userToDelete = await findUserById(id);
+    const transaction = await Users.sequelize.transaction();
     
-    const data = await Users.destroy({
-        where: {
-            id: id
+    try {
+        const userToDelete = await findUserById(id);
+        if (!userToDelete) {
+            throw new Error('Usuario no encontrado');
         }
-    });
-    
-    if (data > 0 && userToDelete && userToDelete.profileImage) {
-        // Aquí podrías implementar lógica para eliminar la imagen de Cloudinary
-        console.log('User deleted, profile image that should be deleted:', userToDelete.profileImage);
+        
+        // Delete profile image from Cloudinary if exists
+        if (userToDelete.profileImage) {
+            try {
+                await deleteImage(userToDelete.profileImage);
+            } catch (deleteError) {
+                console.error('Error deleting image from Cloudinary:', deleteError);
+                // Continue with user deletion even if image deletion fails
+            }
+        }
+        
+        const deletedCount = await Users.destroy({
+            where: { id: id },
+            transaction
+        });
+        
+        if (deletedCount === 0) {
+            throw new Error('No se pudo eliminar el usuario');
+        }
+        
+        await transaction.commit();
+        return { message: 'Usuario eliminado correctamente' };
+        
+    } catch (error) {
+        await transaction.rollback();
+        console.error('Delete user error:', error);
+        throw error;
     }
-    
-    return data;
 };
 
 module.exports = {
