@@ -3,7 +3,7 @@ const uuid = require('uuid');
 const fs = require('fs');
 const path = require('path');
 const { hashPassword } = require('../utils/crypto');
-const { uploadImage, deleteImage } = require('../utils/cloudinary'); // Añadido deleteImage
+const { uploadImage, deleteImage } = require('../utils/cloudinary');
 
 const findAllUser = async (limit = 10, offset = 0) => {
     const data = await Users.findAll({
@@ -42,11 +42,16 @@ const createNewUser = async (userObj, file) => {
     const transaction = await Users.sequelize.transaction();
     
     try {
+        // Validate required fields
+        if (!userObj.firstName || !userObj.lastName || !userObj.email || !userObj.password) {
+            throw new Error('Missing required fields');
+        }
+
         const newUser = {
             id: uuid.v4(),
-            firstName: userObj.firstName.trim(),
-            lastName: userObj.lastName.trim(),
-            email: userObj.email.toLowerCase().trim(),
+            firstName: userObj.firstName.toString().trim(),
+            lastName: userObj.lastName.toString().trim(),
+            email: userObj.email.toString().toLowerCase().trim(),
             password: hashPassword(userObj.password),
             gender: userObj.gender || null,
             birthday: userObj.birthday || null,
@@ -58,17 +63,14 @@ const createNewUser = async (userObj, file) => {
         // Handle file upload
         if (file) {
             try {
-                const imageUrl = await uploadImage(file.path);
+                // Use file buffer directly instead of file path to avoid ENAMETOOLONG
+                const fileStr = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+                const imageUrl = await uploadImage(fileStr);
                 newUser.profileImage = imageUrl;
                 
-                // Delete temp file
-                fs.unlinkSync(file.path);
             } catch (uploadError) {
                 console.error('Cloudinary upload error:', uploadError);
-                if (file.path && fs.existsSync(file.path)) {
-                    fs.unlinkSync(file.path);
-                }
-                throw new Error('Error al subir la imagen de perfil');
+                throw new Error('Error uploading profile image');
             }
         }
         
@@ -82,13 +84,7 @@ const createNewUser = async (userObj, file) => {
     } catch (error) {
         await transaction.rollback();
         console.error('User creation error:', error);
-        
-        // Cleanup if user creation fails but image was uploaded
-        if (file && file.path && fs.existsSync(file.path)) {
-            fs.unlinkSync(file.path);
-        }
-        
-        throw new Error(error.message || 'Error al crear el usuario');
+        throw error;
     }
 };
 
@@ -98,13 +94,13 @@ const updateUser = async (id, userObj, file) => {
     try {
         const currentUser = await findUserById(id);
         if (!currentUser) {
-            throw new Error('Usuario no encontrado');
+            throw new Error('User not found');
         }
         
         const updateData = {
-            firstName: userObj.firstName ? userObj.firstName.trim() : currentUser.firstName,
-            lastName: userObj.lastName ? userObj.lastName.trim() : currentUser.lastName,
-            email: userObj.email ? userObj.email.toLowerCase().trim() : currentUser.email,
+            firstName: userObj.firstName ? userObj.firstName.toString().trim() : currentUser.firstName,
+            lastName: userObj.lastName ? userObj.lastName.toString().trim() : currentUser.lastName,
+            email: userObj.email ? userObj.email.toString().toLowerCase().trim() : currentUser.email,
             gender: userObj.gender || currentUser.gender || null,
             birthday: userObj.birthday || currentUser.birthday || null,
             role: userObj.role || currentUser.role,
@@ -118,12 +114,10 @@ const updateUser = async (id, userObj, file) => {
         // Handle profile image update
         if (file) {
             try {
-                // Upload new image
-                const imageUrl = await uploadImage(file.path);
+                // Upload new image using buffer directly
+                const fileStr = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+                const imageUrl = await uploadImage(fileStr);
                 updateData.profileImage = imageUrl;
-                
-                // Delete temp file
-                fs.unlinkSync(file.path);
                 
                 // Delete old image from Cloudinary if exists
                 if (currentUser.profileImage) {
@@ -131,10 +125,7 @@ const updateUser = async (id, userObj, file) => {
                 }
             } catch (uploadError) {
                 console.error('Image upload error:', uploadError);
-                if (file.path && fs.existsSync(file.path)) {
-                    fs.unlinkSync(file.path);
-                }
-                throw new Error('Error al actualizar la imagen de perfil');
+                throw new Error('Error updating profile image');
             }
         }
         
@@ -144,7 +135,7 @@ const updateUser = async (id, userObj, file) => {
         });
         
         if (affectedRows === 0) {
-            throw new Error('No se pudo actualizar el usuario');
+            throw new Error('Failed to update user');
         }
         
         const updatedUser = await findUserById(id);
@@ -164,7 +155,7 @@ const deleteUser = async (id) => {
     try {
         const userToDelete = await findUserById(id);
         if (!userToDelete) {
-            throw new Error('Usuario no encontrado');
+            throw new Error('User not found');
         }
         
         // Delete profile image from Cloudinary if exists
@@ -183,11 +174,11 @@ const deleteUser = async (id) => {
         });
         
         if (deletedCount === 0) {
-            throw new Error('No se pudo eliminar el usuario');
+            throw new Error('Failed to delete user');
         }
         
         await transaction.commit();
-        return { message: 'Usuario eliminado correctamente' };
+        return { message: 'User deleted successfully' };
         
     } catch (error) {
         await transaction.rollback();
