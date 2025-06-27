@@ -1,4 +1,4 @@
-const cloudinary = require('cloudinary').v2;
+const cloudinary = require('cloudinary'); // Sin .v2 para la versión 1.x
 const { promisify } = require('util');
 const fs = require('fs');
 const unlinkAsync = promisify(fs.unlink);
@@ -32,17 +32,9 @@ const uploadImage = async (file, options = {}) => {
     let result;
     
     if (Buffer.isBuffer(file)) {
-      // Subida desde buffer (sin archivo temporal)
-      result = await new Promise((resolve, reject) => {
-        const uploadStream = cloudinary.uploader.upload_stream(
-          uploadOptions,
-          (error, result) => {
-            if (error) reject(error);
-            else resolve(result);
-          }
-        );
-        uploadStream.end(file);
-      });
+      // Convertir buffer a base64 para Cloudinary v1
+      const fileStr = `data:image/jpeg;base64,${file.toString('base64')}`;
+      result = await cloudinary.uploader.upload(fileStr, uploadOptions);
     } else {
       // Subida desde ruta de archivo
       result = await cloudinary.uploader.upload(file, uploadOptions);
