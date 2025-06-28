@@ -1,5 +1,4 @@
 const express = require('express')
-const cors = require('cors')
 const swaggerUI = require('swagger-ui-express')
 
 const swaggerDoc = require('./swagger.json')
@@ -22,7 +21,6 @@ const app = express()
 
 app.use(express.json())
 
-app.use(cors())
 
 db.authenticate()
     .then(() => console.log('Database authenticated'))
