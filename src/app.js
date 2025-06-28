@@ -1,55 +1,39 @@
-const express = require('express');
-const cors = require('cors');
-const swaggerUI = require('swagger-ui-express');
-const path = require('path');
-const fs = require('fs');
+const express = require('express')
+const cors = require('cors')
+const swaggerUI = require('swagger-ui-express')
 
-const swaggerDoc = require('./swagger.json');
-const responseHandlers = require('./utils/handleResponses');
-const db = require('./utils/database');
-const initModels = require('./models/initModels');
-const config = require('../config').api;
-const multerErrorHandler = require('./middlewares/multerErrorHandle');
+const swaggerDoc = require('./swagger.json')
+const responseHandlers = require('./utils/handleResponses')
+const db = require('./utils/database')
+const initModels = require('./models/initModels')
+const config = require('../config').api
 
-const userRouter = require('./users/users.router');
-const authRouter = require('./auth/auth.router');
-const seriesRouter = require('./series/series.router');
-const serieGenresRouter = require('./serie_genres/serie_genres.router');
-const seasonsRouter = require('./seasons/seasons.router');
-const moviesRouter = require('./movies/movies.router');
-const moviesGenresRouter = require('./movies/movies.router');
-const genresRouter = require('./genres/genres.router');
-const episodesRouter = require('./episodes/episodes.router');
-const cloudinaryTestRouter = require('./cloudinaryTest/cloudinaryTest.router');
+const userRouter = require('./users/users.router')
+const authRouter = require('./auth/auth.router')
+const seriesRouter = require('./series/series.router')
+const serieGenresRouter = require('./serie_genres/serie_genres.router')
+const seasonsRouter  = require('./seasons/seasons.router')
+const moviesRouter = require('./movies/movies.router')
+const moviesGenresRouter = require('./movies/movies.router')
+const genresRouter = require('./genres/genres.router')
+const episodesRouter = require('./episodes/episodes.router')
 
-const app = express();
+const app = express()
 
-// Configuración del directorio de uploads
-const uploadDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
-}
+app.use(express.json())
 
-// Middlewares
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(cors())
 
-// Servir archivos estáticos desde el directorio uploads
-app.use('/uploads', express.static(uploadDir));
-
-// Autenticación y sincronización de la base de datos
 db.authenticate()
     .then(() => console.log('Database authenticated'))
-    .catch(err => console.log(err));
+    .catch(err => console.log(err))
 
 db.sync()
     .then(() => console.log('Database Synced'))
-    .catch(err => console.log(err));
+    .catch(err => console.log(err))
 
-initModels();
+initModels()
 
-// Ruta de inicio con documentación de endpoints
 app.get('/', (req, res) => {
     responseHandlers.success({
         res,
@@ -102,38 +86,31 @@ app.get('/', (req, res) => {
                 "swaggerUI - Documentación interactiva de la API": `${config.host}/api/v1/docs`
             }
         }
-    });
-});
+    })
+})
 
-// Rutas de la API
-app.use('/api/v1/users', userRouter);
-app.use('/api/v1/auth', authRouter);
-app.use('/api/v1/series', seriesRouter);
-app.use('/api/v1/seriegenres', serieGenresRouter);
-app.use('/api/v1/seasons', seasonsRouter);
-app.use('/api/v1/movies', moviesRouter);
-app.use('/api/v1/moviesgenres', moviesGenresRouter);
-app.use('/api/v1/genres', genresRouter);
-app.use('/api/v1/episodes', episodesRouter);
-app.use('/api/v1/docs', swaggerUI.serve, swaggerUI.setup(swaggerDoc));
-app.use('/api/v1/test/cloudinary', cloudinaryTestRouter);
 
-// Middleware para manejar errores de Multer
-app.use(multerErrorHandler);
+app.use('/api/v1/users', userRouter)
+app.use('/api/v1/auth', authRouter)
+app.use('/api/v1/series', seriesRouter)
+app.use('/api/v1/seriegenres', serieGenresRouter)
+app.use('/api/v1/seasons', seasonsRouter )
+app.use('/api/v1/movies', moviesRouter)
+app.use('/api/v1/moviesgenres', moviesGenresRouter)
+app.use('/api/v1/genres', genresRouter)
+app.use('/api/v1/episodes', episodesRouter)
+app.use('/api/v1/docs', swaggerUI.serve, swaggerUI.setup(swaggerDoc))
 
-// Ruta para manejar 404
-app.use('*', (req, res) => {
+
+//? Esta debe ser la ultima ruta en mi app
+app.use('*', (req, res)=> {
     responseHandlers.error({
         res,
         status: 404,
         message: `URL not found, please try with ${config.host}`,
-    });
-});
+    })
+})
 
-// Iniciar servidor
-app.listen(config.port, () => {
-    console.log(`Server started at port ${config.port}`);
-    console.log(`Uploads directory: ${uploadDir}`);
-});
-
-module.exports = app;
+app.listen(config.port ,() => {
+    console.log(`Server started at port ${config.port}`)
+})

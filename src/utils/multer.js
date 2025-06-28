@@ -1,64 +1,59 @@
 const multer = require('multer');
 const path = require('path');
+const { v4: uuidv4 } = require('uuid');
 
-// Configuración avanzada de memoryStorage
+// Configuración de almacenamiento en memoria (optimizado para Supabase)
 const storage = multer.memoryStorage();
 
+// Filtro de tipos de archivo permitidos
+const fileFilter = (req, file, cb) => {
+  const allowedTypes = [
+    'image/jpeg', 
+    'image/png', 
+    'image/gif', 
+    'image/webp',
+    'image/svg+xml'
+  ];
+  
+  const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg'];
+  const ext = path.extname(file.originalname).toLowerCase();
+
+  if (allowedTypes.includes(file.mimetype) && allowedExtensions.includes(ext)) {
+    cb(null, true);
+  } else {
+    cb(new Error(`Invalid file type. Only ${allowedExtensions.join(', ')} are allowed!`), false);
+  }
+};
+
+// Configuración de Multer
 const upload = multer({
   storage: storage,
+  fileFilter: fileFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB límite
-    files: 1, // Solo permitir un archivo
-    parts: 20 // Límite de partes del formulario
+    fileSize: 10 * 1024 * 1024, // Límite de 10MB
+    files: 1 // Solo permite un archivo por campo
   },
-  fileFilter: (req, file, cb) => {
-    const validMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    const validExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
-    
-    // Verificar tipo MIME
-    const isValidMimeType = validMimeTypes.includes(file.mimetype);
-    
-    // Verificar extensión del archivo
-    const extension = path.extname(file.originalname).toLowerCase();
-    const isValidExtension = validExtensions.includes(extension);
-    
-    if (isValidMimeType && isValidExtension) {
-      return cb(null, true);
-    }
-    
-    // Error más descriptivo
-    const error = new Error(
-      `Tipo de archivo no válido. Solo se permiten: ${validExtensions.join(', ')}`
-    );
-    error.code = 'LIMIT_FILE_TYPE';
-    cb(error);
-  },
-  onError: (err, next) => {
-    // Manejo personalizado de errores
+  // Manejo de errores personalizado
+  onError: function(err, next) {
     if (err.code === 'LIMIT_FILE_SIZE') {
-      err.message = 'El archivo excede el límite de 5MB';
+      next(new Error('File too large. Maximum size is 10MB'));
+    } else if (err.code === 'LIMIT_FILE_COUNT') {
+      next(new Error('Too many files. Only one file is allowed'));
+    } else {
+      next(err);
     }
-    next(err);
   }
 });
 
-// Middleware para manejar errores específicamente
-upload.handleErrors = (err, req, res, next) => {
-  if (err instanceof multer.MulterError) {
-    // Error de Multer (LIMIT_FILE_SIZE, LIMIT_FILE_TYPE, etc.)
-    return res.status(400).json({
-      success: false,
-      message: err.message,
-      code: err.code
-    });
-  } else if (err) {
-    // Otros errores
-    return res.status(400).json({
-      success: false,
-      message: err.message || 'Error al procesar el archivo'
-    });
-  }
-  next();
-};
+// Middlewares específicos para diferentes casos de uso
+const uploadSingleImage = (fieldName) => upload.single(fieldName);
+const uploadMultipleImages = (fieldName, maxCount = 5) => upload.array(fieldName, maxCount);
+const uploadMixedFiles = (fields) => upload.fields(fields);
 
-module.exports = upload;
+module.exports = {
+  upload,
+  uploadSingleImage,
+  uploadMultipleImages,
+  uploadMixedFiles,
+  fileFilter
+};

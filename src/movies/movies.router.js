@@ -1,14 +1,14 @@
 const router = require('express').Router()
 const passportJwt = require('../middlewares/auth.middleware')
 const moviesServices = require('./movies.services')
-const upload = require('../utils/multer') // Para manejar subida de archivos
+const { uploadMixedFiles } = require('../utils/multer') // Cambio importante aquí
 
 // Rutas principales de películas
 router.route('/')
   .get(moviesServices.getAllMovies) // Obtener todas las películas
   .post(
     passportJwt,
-    upload.fields([
+    uploadMixedFiles([
       { name: 'coverUrl', maxCount: 1 },
       { name: 'trailerUrl', maxCount: 1 },
       { name: 'movieUrl', maxCount: 1 }
@@ -21,7 +21,7 @@ router.route('/:id')
   .get(moviesServices.getMovieById) // Obtener película por ID
   .patch(
     passportJwt,
-    upload.fields([
+    uploadMixedFiles([
       { name: 'coverUrl', maxCount: 1 },
       { name: 'trailerUrl', maxCount: 1 },
       { name: 'movieUrl', maxCount: 1 }

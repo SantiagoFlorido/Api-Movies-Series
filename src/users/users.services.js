@@ -54,7 +54,7 @@ const getUserById = (req, res) => {
 const postNewUser = (req, res) => {
     const userObj = {
         ...req.body,
-        file: req.file?.path // Add file path if uploaded
+        file: req.file // Pasamos el archivo completo en lugar de solo el path
     }
     
     usersControllers.createNewUser(userObj)
@@ -70,7 +70,7 @@ const postNewUser = (req, res) => {
             responses.error({
                 status: 400,
                 data: err,
-                message: 'Error occurred trying to create a new user',
+                message: err.message || 'Error occurred trying to create a new user',
                 res,
                 fields: {
                     firstName: 'String (2-50 characters)',
@@ -79,7 +79,7 @@ const postNewUser = (req, res) => {
                     password: 'String',
                     gender: 'String (optional)',
                     birthday: 'Date (optional)',
-                    profileImage: 'URL or file upload (optional)'
+                    profileImage: 'File upload (optional)'
                 }
             })
         })
@@ -89,7 +89,7 @@ const patchUser = (req, res) => {
     const id = req.params.id 
     const userObj = {
         ...req.body,
-        file: req.file?.path // Add file path if uploaded
+        file: req.file // Pasamos el archivo completo
     }
 
     usersControllers.updateUser(id, userObj)
@@ -113,7 +113,7 @@ const patchUser = (req, res) => {
                         password: 'String',
                         gender: 'String (optional)',
                         birthday: 'Date (optional)',
-                        profileImage: 'URL or file upload (optional)'
+                        profileImage: 'File upload (optional)'
                     }
                 })
             }
@@ -122,7 +122,7 @@ const patchUser = (req, res) => {
             responses.error({
                 status: 400,
                 data: err,
-                message: `Error occurred trying to update user with id ${id}`,
+                message: err.message || `Error occurred trying to update user with id ${id}`,
                 res,
                 fields: {
                     firstName: 'String (2-50 characters)',
@@ -131,7 +131,7 @@ const patchUser = (req, res) => {
                     password: 'String',
                     gender: 'String (optional)',
                     birthday: 'Date (optional)',
-                    profileImage: 'URL or file upload (optional)'
+                    profileImage: 'File upload (optional)'
                 }
             })
         })
@@ -196,18 +196,18 @@ const deleteMyUser = (req, res) => {
     const id = req.user.id
 
     usersControllers.deleteUser(id)
-        .then(data => {
+        .then(() => {
             responses.success({
                 res,
                 status: 200,
-                message: `User deleted successfully with id: ${id}`
+                message: `Your user account has been deleted successfully`
             })
         })
         .catch(err => {
             responses.error({
                 res,
                 status: 400,
-                message: 'Something bad trying to delete this user',
+                message: 'Something bad trying to delete your account',
                 data: err
             })
         })
@@ -217,7 +217,7 @@ const patchMyUser = (req, res) => {
     const id = req.user.id
     const userObj = {
         ...req.body,
-        file: req.file?.path // Add file path if uploaded
+        file: req.file // Pasamos el archivo completo
     }
 
     // Hash password if provided
@@ -231,7 +231,7 @@ const patchMyUser = (req, res) => {
                 responses.success({
                     res,
                     status: 200,
-                    message: 'Your user has been updated successfully!',
+                    message: 'Your profile has been updated successfully!',
                     data
                 })
             } else {
@@ -246,7 +246,7 @@ const patchMyUser = (req, res) => {
             responses.error({
                 res,
                 status: 400,
-                message: 'Something bad happened while updating your profile',
+                message: err.message || 'Something bad happened while updating your profile',
                 data: err
             })
         })
