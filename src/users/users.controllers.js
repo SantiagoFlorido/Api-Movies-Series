@@ -1,7 +1,7 @@
 const Users = require('../models/users.models');
 const uuid = require('uuid');
 const { hashPassword } = require('../utils/crypto');
-const { uploadFile, deleteFile } = require('../utils/supabase'); // Cambiamos a las funciones de Supabase
+const { uploadFile, deleteFile } = require('../utils/supabase');
 
 const findAllUser = async () => {
     const data = await Users.findAll({
@@ -50,7 +50,15 @@ const createNewUser = async (userObj) => {
     // Manejo de la imagen de perfil con Supabase
     if (userObj.file) {
         try {
-            const imageUrl = await uploadFile(userObj.file, {
+            // Asegurarnos de que el buffer esté correctamente formado
+            const fileBuffer = Buffer.isBuffer(userObj.file.buffer) 
+                ? userObj.file.buffer 
+                : Buffer.from(userObj.file.buffer);
+            
+            const imageUrl = await uploadFile({
+                ...userObj.file,
+                buffer: fileBuffer
+            }, {
                 folder: 'profile_images',
                 filename: `user_${newUser.id}_${Date.now()}`,
                 contentType: userObj.file.mimetype || 'image/jpeg'
@@ -83,15 +91,23 @@ const updateUser = async (id, userObj) => {
     if (userObj.file) {
         try {
             // Eliminar la imagen anterior si existe
-            if (currentUser.profileImage) {
+            if (currentUser && currentUser.profileImage) {
                 const oldImagePath = extractPathFromUrl(currentUser.profileImage);
                 await deleteFile(oldImagePath).catch(err => 
                     console.error('Error deleting old image:', err)
                 );
             }
             
+            // Asegurarnos de que el buffer esté correctamente formado
+            const fileBuffer = Buffer.isBuffer(userObj.file.buffer) 
+                ? userObj.file.buffer 
+                : Buffer.from(userObj.file.buffer);
+            
             // Subir nueva imagen
-            const imageUrl = await uploadFile(userObj.file, {
+            const imageUrl = await uploadFile({
+                ...userObj.file,
+                buffer: fileBuffer
+            }, {
                 folder: 'profile_images',
                 filename: `user_${id}_${Date.now()}`,
                 contentType: userObj.file.mimetype || 'image/jpeg'
@@ -143,11 +159,16 @@ const deleteUser = async (id) => {
 
 // Función auxiliar para extraer la ruta del archivo desde la URL de Supabase
 function extractPathFromUrl(url) {
-    const baseUrl = process.env.SUPABASE_URL + '/storage/v1/object/public/';
-    if (url.startsWith(baseUrl)) {
-        return url.replace(baseUrl, '');
+    if (!url) return null;
+    
+    // Extraer la parte después de 'object/public/'
+    const publicIndex = url.indexOf('object/public/');
+    if (publicIndex !== -1) {
+        return url.substring(publicIndex + 'object/public/'.length);
     }
-    return url; // Si no coincide, devolver la URL completa (por compatibilidad)
+    
+    // Si no coincide, devolver la URL completa (por compatibilidad)
+    return url;
 }
 
 module.exports = {

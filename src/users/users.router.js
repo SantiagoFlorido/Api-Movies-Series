@@ -1,13 +1,16 @@
 const router = require('express').Router()
 const userServices = require('./users.services')
 const passportJwt = require('../middlewares/auth.middleware')
-const { uploadSingleImage } = require('../utils/multer') // Cambio importante aquí
+const { uploadSingleImage } = require('../utils/multer')
 const { validateUserData } = require('../middlewares/validations.middleware')
+const { handleMulterError } = require('../utils/multer')
 
 // Configuración de rutas públicas
 router.get('/', userServices.getAllUsers)
+
 router.post('/', 
-  uploadSingleImage('profileImage'), // Usamos uploadSingleImage en lugar de upload.single
+  uploadSingleImage('profileImage'),
+  handleMulterError, // Manejo de errores de Multer
   validateUserData,
   userServices.postNewUser
 )
@@ -21,6 +24,7 @@ router.get('/me',
 router.patch('/me',
   passportJwt,
   uploadSingleImage('profileImage'),
+  handleMulterError,
   validateUserData,
   userServices.patchMyUser
 )
@@ -39,6 +43,7 @@ router.get('/:id',
 router.patch('/:id',
   passportJwt,
   uploadSingleImage('profileImage'),
+  handleMulterError,
   validateUserData,
   userServices.patchUser
 )

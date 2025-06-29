@@ -54,7 +54,7 @@ const getUserById = (req, res) => {
 const postNewUser = (req, res) => {
     const userObj = {
         ...req.body,
-        file: req.file // Pasamos el archivo completo en lugar de solo el path
+        file: req.file // Pasamos el archivo directamente
     }
     
     usersControllers.createNewUser(userObj)
@@ -89,7 +89,7 @@ const patchUser = (req, res) => {
     const id = req.params.id 
     const userObj = {
         ...req.body,
-        file: req.file // Pasamos el archivo completo
+        file: req.file // Pasamos el archivo directamente
     }
 
     usersControllers.updateUser(id, userObj)
@@ -217,7 +217,7 @@ const patchMyUser = (req, res) => {
     const id = req.user.id
     const userObj = {
         ...req.body,
-        file: req.file // Pasamos el archivo completo
+        file: req.file // Pasamos el archivo directamente
     }
 
     // Hash password if provided

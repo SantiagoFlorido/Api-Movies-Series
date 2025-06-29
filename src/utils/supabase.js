@@ -1,7 +1,4 @@
 const { createClient } = require('@supabase/supabase-js');
-const { promisify } = require('util');
-const fs = require('fs');
-const unlinkAsync = promisify(fs.unlink);
 const config = require('../../config').supabase;
 
 // Configuración robusta con validación
@@ -13,8 +10,8 @@ if (!config.url || !config.serviceRoleKey || !config.bucket) {
 const supabase = createClient(config.url, config.serviceRoleKey);
 
 /**
- * Sube un archivo a Supabase Storage desde un buffer o path
- * @param {Buffer|string} file - Puede ser el buffer del archivo o la ruta temporal
+ * Sube un archivo a Supabase Storage desde un buffer o objeto de archivo Multer
+ * @param {Buffer|Object} file - Puede ser el buffer del archivo o el objeto file de Multer
  * @param {Object} [options={}] - Opciones adicionales para la subida
  * @returns {Promise<string>} URL pública del archivo subido
  */
@@ -30,11 +27,27 @@ const uploadFile = async (file, options = {}) => {
     let fileBuffer;
     let fileName;
 
-    if (Buffer.isBuffer(file)) {
+    // Si es un objeto de archivo de Multer
+    if (file && file.buffer) {
+      fileBuffer = file.buffer;
+      fileName = options.filename || file.originalname || `file_${Date.now()}`;
+      
+      // Si no se proporcionó contentType, intenta obtenerlo del archivo
+      if (!uploadOptions.contentType || uploadOptions.contentType === 'auto') {
+        uploadOptions.contentType = file.mimetype || 'application/octet-stream';
+      }
+    } 
+    // Si es un Buffer directamente
+    else if (Buffer.isBuffer(file)) {
       fileBuffer = file;
       fileName = options.filename || `file_${Date.now()}`;
-    } else {
-      // Leer archivo desde ruta temporal
+    } 
+    // Si es una ruta de archivo (mantenido por compatibilidad)
+    else if (typeof file === 'string') {
+      const fs = require('fs');
+      const { promisify } = require('util');
+      const unlinkAsync = promisify(fs.unlink);
+      
       fileBuffer = fs.readFileSync(file);
       fileName = options.filename || file.split('/').pop();
       
@@ -44,6 +57,10 @@ const uploadFile = async (file, options = {}) => {
       } catch (unlinkError) {
         console.warn('Warning: Could not delete temp file:', unlinkError);
       }
+    } 
+    // Tipo no soportado
+    else {
+      throw new TypeError('The "file" argument must be a Buffer, Multer file object, or file path string');
     }
 
     // Definir ruta en el bucket
@@ -81,9 +98,12 @@ const uploadFile = async (file, options = {}) => {
  */
 const deleteFile = async (filePath) => {
   try {
+    // Extraer solo la parte de la ruta después del bucket si es una URL completa
+    const pathOnly = filePath.replace(`${config.url}/storage/v1/object/public/${config.bucket}/`, '');
+    
     const { error } = await supabase.storage
       .from(config.bucket)
-      .remove([filePath]);
+      .remove([pathOnly]);
 
     if (error) {
       throw error;
@@ -102,9 +122,12 @@ const deleteFile = async (filePath) => {
  */
 const getSignedUrl = async (filePath, expiresIn = 3600) => {
   try {
+    // Extraer solo la parte de la ruta después del bucket si es una URL completa
+    const pathOnly = filePath.replace(`${config.url}/storage/v1/object/public/${config.bucket}/`, '');
+    
     const { data, error } = await supabase.storage
       .from(config.bucket)
-      .createSignedUrl(filePath, expiresIn);
+      .createSignedUrl(pathOnly, expiresIn);
 
     if (error) {
       throw error;
