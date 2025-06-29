@@ -42,7 +42,7 @@ const createNewUser = async (userObj) => {
         password: hashPassword(userObj.password),
         gender: userObj.gender || null,
         birthday: userObj.birthday || null,
-        profileImage: userObj.profileImage,
+        profileImage: userObj.profileImage || null,
         role: userObj.role || 'normal',
         status: userObj.status || 'active'
     };

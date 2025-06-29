@@ -1,5 +1,6 @@
 const express = require('express')
 const swaggerUI = require('swagger-ui-express')
+const cors = require('cors') // Importar el paquete cors
 
 const swaggerDoc = require('./swagger.json')
 const responseHandlers = require('./utils/handleResponses')
@@ -19,8 +20,28 @@ const episodesRouter = require('./episodes/episodes.router')
 
 const app = express()
 
+// Configuración de CORS para permitir todos los orígenes y métodos
+app.use(cors({
+    origin: '*', // Permite todos los orígenes
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'], // Permite todos los métodos HTTP
+    allowedHeaders: ['Content-Type', 'Authorization'], // Headers permitidos
+    credentials: true // Permite el envío de credenciales (si es necesario)
+}))
+
 app.use(express.json())
 
+// Opcional: Configurar CORS manualmente (alternativa a usar el paquete cors)
+/*
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*')
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE')
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+    if (req.method === 'OPTIONS') {
+        return res.sendStatus(200)
+    }
+    next()
+})
+*/
 
 db.authenticate()
     .then(() => console.log('Database authenticated'))
@@ -87,7 +108,6 @@ app.get('/', (req, res) => {
     })
 })
 
-
 app.use('/api/v1/users', userRouter)
 app.use('/api/v1/auth', authRouter)
 app.use('/api/v1/series', seriesRouter)
@@ -98,7 +118,6 @@ app.use('/api/v1/moviesgenres', moviesGenresRouter)
 app.use('/api/v1/genres', genresRouter)
 app.use('/api/v1/episodes', episodesRouter)
 app.use('/api/v1/docs', swaggerUI.serve, swaggerUI.setup(swaggerDoc))
-
 
 //? Esta debe ser la ultima ruta en mi app
 app.use('*', (req, res)=> {
