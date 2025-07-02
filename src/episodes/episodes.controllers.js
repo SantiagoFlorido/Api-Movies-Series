@@ -1,5 +1,5 @@
-const { Episodes } = require('../models/episodes.models');
-const { Seasons } = require('../models/seasons.models');
+const  Episodes  = require('../models/episodes.models');
+const  Seasons  = require('../models/seasons.models');
 const uuid = require('uuid');
 
 const findAllEpisodes = async (seasonId = null) => {

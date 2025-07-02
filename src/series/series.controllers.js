@@ -1,6 +1,6 @@
 const Series = require('../models/series.models');
 const Genres = require('../models/genres.models');
-const { SerieGenres } = require('../models/SerieGenres.models');
+const  SerieGenres  = require('../models/SerieGenres.models');
 const uuid = require('uuid');
 
 const findAllSeries = async () => {

@@ -1,6 +1,6 @@
-const { Genres } = require('../models/genres.models');
-const { Movies } = require('../models/movies.models');
-const { Series } = require('../models/series.models');
+const  Genres  = require('../models/genres.models');
+const  Movies  = require('../models/movies.models');
+const  Series  = require('../models/series.models');
 
 const findAllGenres = async () => {
     const data = await Genres.findAll({
