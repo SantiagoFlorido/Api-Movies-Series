@@ -1,40 +1,32 @@
-const router = require('express').Router()
-const passportJwt = require('../middlewares/auth.middleware')
-const moviesServices = require('./movies.services')
-const { uploadMixedFiles } = require('../utils/multer') // Cambio importante aquí
+const router = require('express').Router();
+const passportJwt = require('../middlewares/auth.middleware');
+const moviesServices = require('./movies.services');
+const { uploadMovieFiles } = require('../utils/multer'); // Importar el middleware específico para películas
 
 // Rutas principales de películas
 router.route('/')
   .get(moviesServices.getAllMovies) // Obtener todas las películas
   .post(
     passportJwt,
-    uploadMixedFiles([
-      { name: 'coverUrl', maxCount: 1 },
-      { name: 'trailerUrl', maxCount: 1 },
-      { name: 'movieUrl', maxCount: 1 }
-    ]),
+    uploadMovieFiles(), // Usar el middleware específico para películas
     moviesServices.postNewMovie
-  ) // Crear nueva película
+  ); // Crear nueva película
 
 // Rutas para película específica
 router.route('/:id')
   .get(moviesServices.getMovieById) // Obtener película por ID
   .patch(
     passportJwt,
-    uploadMixedFiles([
-      { name: 'coverUrl', maxCount: 1 },
-      { name: 'trailerUrl', maxCount: 1 },
-      { name: 'movieUrl', maxCount: 1 }
-    ]),
+    uploadMovieFiles(), // Usar el mismo middleware para actualizar
     moviesServices.patchMovie
   ) // Actualizar película
-  .delete(passportJwt, moviesServices.deleteMovie) // Eliminar película
+  .delete(passportJwt, moviesServices.deleteMovie); // Eliminar película
 
 // Rutas para gestión de géneros
 router.route('/:id/genres')
-  .post(passportJwt, moviesServices.postGenreToMovie) // Añadir género a película
+  .post(passportJwt, moviesServices.postGenreToMovie); // Añadir género a película
 
 router.route('/:id/genres/:genreId')
-  .delete(passportJwt, moviesServices.deleteGenreFromMovie) // Eliminar género de película
+  .delete(passportJwt, moviesServices.deleteGenreFromMovie); // Eliminar género de película
 
-module.exports = router
+module.exports = router;
