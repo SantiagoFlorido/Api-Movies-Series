@@ -132,7 +132,7 @@ const uploadFile = async (file, options = {}) => {
 
         if (error) {
           // Si el error es que el archivo ya existe, generamos un nuevo nombre y reintentamos
-          if (error.message.includes('already exists') {
+          if (error.message.includes('already exists')) {
             const newFileName = generateUniqueFilename(fileName);
             const newFilePath = options.folder 
               ? `${options.folder}/${newFileName.replace(/[^a-zA-Z0-9\-._]/g, '')}`
