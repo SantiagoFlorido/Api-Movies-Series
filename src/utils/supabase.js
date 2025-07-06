@@ -176,7 +176,127 @@ const uploadFile = async (file, options = {}) => {
   }
 };
 
-// ... (el resto de las funciones permanecen igual)
+/**
+ * Elimina un archivo de Supabase Storage
+ * @param {string} filePath - Ruta del archivo o URL completa
+ * @returns {Promise<void>}
+ */
+const deleteFile = async (filePath) => {
+  try {
+    if (!filePath) {
+      throw new Error('No file path provided');
+    }
+
+    // Extraer solo la parte de la ruta después del bucket
+    const pathOnly = filePath.includes(`${config.url}/storage/v1/object/public/${config.bucket}/`)
+      ? filePath.replace(`${config.url}/storage/v1/object/public/${config.bucket}/`, '')
+      : filePath;
+
+    const { error } = await supabase.storage
+      .from(config.bucket)
+      .remove([pathOnly]);
+
+    if (error) {
+      throw error;
+    }
+  } catch (err) {
+    console.error('Supabase delete error:', {
+      message: err.message,
+      filePath: filePath,
+      stack: err.stack
+    });
+    throw new Error(`Failed to delete file: ${err.message}`);
+  }
+};
+
+/**
+ * Obtiene una URL firmada para acceso privado temporal
+ * @param {string} filePath - Ruta del archivo o URL completa
+ * @param {number} expiresIn - Segundos hasta que expira (default: 3600)
+ * @returns {Promise<string>} URL firmada
+ */
+const getSignedUrl = async (filePath, expiresIn = 3600) => {
+  try {
+    if (!filePath) {
+      throw new Error('No file path provided');
+    }
+
+    // Extraer solo la parte de la ruta después del bucket
+    const pathOnly = filePath.includes(`${config.url}/storage/v1/object/public/${config.bucket}/`)
+      ? filePath.replace(`${config.url}/storage/v1/object/public/${config.bucket}/`, '')
+      : filePath;
+
+    const { data, error } = await supabase.storage
+      .from(config.bucket)
+      .createSignedUrl(pathOnly, expiresIn);
+
+    if (error) throw error;
+
+    return data.signedUrl;
+  } catch (err) {
+    console.error('Supabase signed URL error:', {
+      message: err.message,
+      filePath: filePath,
+      stack: err.stack
+    });
+    throw new Error(`Failed to generate signed URL: ${err.message}`);
+  }
+};
+
+/**
+ * Verifica si un archivo existe en el bucket
+ * @param {string} filePath - Ruta del archivo o URL completa
+ * @returns {Promise<boolean>}
+ */
+const fileExists = async (filePath) => {
+  try {
+    const pathOnly = filePath.includes(`${config.url}/storage/v1/object/public/${config.bucket}/`)
+      ? filePath.replace(`${config.url}/storage/v1/object/public/${config.bucket}/`, '')
+      : filePath;
+
+    const { data, error } = await supabase.storage
+      .from(config.bucket)
+      .list('', {
+        limit: 1,
+        search: pathOnly
+      });
+
+    if (error) throw error;
+
+    return data.length > 0 && data.some(file => file.name === pathOnly.split('/').pop());
+  } catch (err) {
+    console.error('Supabase file exists check error:', err);
+    return false;
+  }
+};
+
+/**
+ * Obtiene metadatos de un archivo
+ * @param {string} filePath - Ruta del archivo o URL completa
+ * @returns {Promise<Object>} Metadatos del archivo
+ */
+const getFileMetadata = async (filePath) => {
+  try {
+    const pathOnly = filePath.includes(`${config.url}/storage/v1/object/public/${config.bucket}/`)
+      ? filePath.replace(`${config.url}/storage/v1/object/public/${config.bucket}/`, '')
+      : filePath;
+
+    const { data, error } = await supabase.storage
+      .from(config.bucket)
+      .list('', {
+        limit: 1,
+        search: pathOnly
+      });
+
+    if (error) throw error;
+    if (!data || data.length === 0) throw new Error('File not found');
+
+    return data[0];
+  } catch (err) {
+    console.error('Supabase get file metadata error:', err);
+    throw new Error(`Failed to get file metadata: ${err.message}`);
+  }
+};
 
 module.exports = {
   uploadFile,
