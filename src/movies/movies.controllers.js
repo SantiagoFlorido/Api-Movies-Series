@@ -2,7 +2,7 @@ const Movies = require('../models/movies.models');
 const Genres = require('../models/genres.models');
 const MovieGenres = require('../models/MovieGenres.models');
 const uuid = require('uuid');
-const { uploadFile } = require('../utils/supabase'); // Importar función de Supabase
+const { uploadFile, deleteFile } = require('../utils/supabase'); // Importar ambas funciones de Supabase
 
 const findAllMovies = async (genreId = null) => {
     const options = {
