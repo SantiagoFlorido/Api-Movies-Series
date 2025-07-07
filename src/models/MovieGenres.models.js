@@ -8,11 +8,11 @@ const MovieGenres = db.define("movie_genres", {
     primaryKey: true,
     allowNull: false
   },
-  movieId: {
+  movie_Id: {
     type: DataTypes.UUID,
     allowNull: false
   },
-  genreId: {
+  genre_Id: {
     type: DataTypes.INTEGER,
     allowNull: false
   }
