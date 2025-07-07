@@ -1,4 +1,5 @@
 const { DataTypes } = require("sequelize");
+const uuid = require("uuid");
 
 const db = require("../utils/database");
 
@@ -6,18 +7,21 @@ const MovieGenres = db.define("movie_genres", {
   id: {
     type: DataTypes.UUID,
     primaryKey: true,
-    allowNull: false
+    allowNull: false,
+    defaultValue: DataTypes.UUIDV4 
   },
-  movie_Id: {
+  movie_id: { 
     type: DataTypes.UUID,
-    allowNull: false
+    allowNull: false,
+    field: 'movie_id' 
   },
-  genre_Id: {
+  genre_id: { 
     type: DataTypes.INTEGER,
-    allowNull: false
+    allowNull: false,
+    field: 'genre_id' 
   }
 }, {
-  tableName: 'movie_genres'
+  tableName: 'movie_genres',
 });
 
 module.exports = MovieGenres;
