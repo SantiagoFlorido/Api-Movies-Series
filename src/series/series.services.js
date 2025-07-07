@@ -1,5 +1,6 @@
 const seriesControllers = require('./series.controllers')
 const responses = require('../utils/handleResponses')
+const upload = require('../utils/multer').uploadSingleImage('coverUrl')
 
 const getAllSeries = (req, res) => {
     seriesControllers.findAllSeries()
@@ -74,6 +75,7 @@ const postNewSerie = (req, res) => {
                     director: 'String (optional, 2-100 chars)',
                     classification: 'String (optional, 1-50 chars)',
                     rating: 'Float (optional, 0-10)',
+                    coverUrl: 'File (image, optional)',
                     genres: 'Array of genre IDs (optional)'
                 }
             })
@@ -114,6 +116,7 @@ const patchSerie = (req, res) => {
                     director: 'String (optional, 2-100 chars)',
                     classification: 'String (optional, 1-50 chars)',
                     rating: 'Float (optional, 0-10)',
+                    coverUrl: 'File (image, optional)',
                     genres: 'Array of genre IDs (optional)'
                 }
             })
@@ -210,8 +213,8 @@ const deleteGenreFromSerie = (req, res) => {
 module.exports = {
     getAllSeries,
     getSerieById,
-    postNewSerie,
-    patchSerie,
+    postNewSerie: [upload, postNewSerie], // Agregamos el middleware de multer para la subida de imágenes
+    patchSerie: [upload, patchSerie],     // También para las actualizaciones
     deleteSerie,
     postGenreToSerie,
     deleteGenreFromSerie

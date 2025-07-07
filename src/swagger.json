@@ -2416,6 +2416,11 @@
                         "example": 9.5,
                         "nullable": true
                       },
+                      "coverUrl": {
+                        "type": "string",
+                        "example": "https://example.com/inception.jpg",
+                        "nullable": true
+                      },
                       "genres": {
                         "type": "array",
                         "items": {
@@ -2493,6 +2498,11 @@
                     "example": 9.5,
                     "nullable": true
                   },
+                  "coverUrl": {
+                    "type": "string",
+                    "example": "https://example.com/inception.jpg",
+                    "nullable": true
+                  },
                   "genres": {
                     "type": "array",
                     "description": "IDs de géneros asociados (opcional)",
@@ -2550,6 +2560,11 @@
                       "format": "float",
                       "example": 9.5,
                       "nullable": true
+                    },
+                    "coverUrl": {
+                      "type": "string",
+                      "example": "https://example.com/inception.jpg",
+                      "nullable": true
                     }
                   }
                 }
@@ -2597,6 +2612,11 @@
                         "genres": {
                           "type": "string",
                           "example": "Array of genre IDs (optional)"
+                        },
+                        "coverUrl": {
+                          "type": "string",
+                          "example": "https://example.com/inception.jpg",
+                          "nullable": true
                         }
                       }
                     }
@@ -2669,6 +2689,11 @@
                       "type": "number",
                       "format": "float",
                       "example": 9.5,
+                      "nullable": true
+                    },
+                    "coverUrl": {
+                      "type": "string",
+                      "example": "https://example.com/inception.jpg",
                       "nullable": true
                     },
                     "genres": {
@@ -2761,6 +2786,11 @@
                     "example": 9.7,
                     "nullable": true
                   },
+                  "coverUrl": {
+                    "type": "string",
+                    "example": "https://example.com/inception.jpg",
+                    "nullable": true
+                  },
                   "genres": {
                     "type": "array",
                     "description": "IDs de géneros asociados",
@@ -2817,6 +2847,11 @@
                       "type": "number",
                       "format": "float",
                       "example": 9.7,
+                      "nullable": true
+                    },
+                    "coverUrl": {
+                      "type": "string",
+                      "example": "https://example.com/inception.jpg",
                       "nullable": true
                     }
                   }

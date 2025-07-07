@@ -1,5 +1,4 @@
 const { DataTypes } = require("sequelize");
-
 const db = require("../utils/database");
 
 const Series = db.define("series", {
@@ -48,6 +47,13 @@ const Series = db.define("series", {
       isFloat: true,
       min: 0,
       max: 10
+    }
+  },
+  coverUrl: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    validate: {
+      isUrl: true
     }
   }
 }, {
