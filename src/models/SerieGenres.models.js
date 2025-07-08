@@ -1,23 +1,25 @@
 const { DataTypes } = require("sequelize");
-
 const db = require("../utils/database");
 
 const SerieGenres = db.define("serie_genres", {
   id: {
     type: DataTypes.UUID,
     primaryKey: true,
-    allowNull: false
+    allowNull: false,
+    defaultValue: DataTypes.UUIDV4 
   },
-  serieId: {
+  serie_id: {
     type: DataTypes.UUID,
-    allowNull: false
+    allowNull: false,
+    field: 'serie_id' 
   },
-  genreId: {
-    type: DataTypes.INTEGER,
-    allowNull: false
+  genre_id: {
+    type: DataTypes.UUID, 
+    allowNull: false,
+    field: 'genre_id'
   }
 }, {
-  tableName: 'serie_genres'
+  tableName: 'serie_genres',
 });
 
 module.exports = SerieGenres;

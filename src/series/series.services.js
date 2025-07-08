@@ -13,10 +13,11 @@ const getAllSeries = (req, res) => {
             })
         })
         .catch(err => {
+            console.error('Error in getAllSeries:', err)
             responses.error({
-                status: 400,
+                status: 500,
                 data: err,
-                message: 'Something went wrong getting all series',
+                message: 'Internal server error while getting all series',
                 res
             })
         })
@@ -24,6 +25,16 @@ const getAllSeries = (req, res) => {
 
 const getSerieById = (req, res) => {
     const id = req.params.id
+    
+    // Validación básica del ID
+    if (!id || typeof id !== 'string') {
+        return responses.error({
+            status: 400,
+            message: 'Invalid serie ID provided',
+            res
+        })
+    }
+
     seriesControllers.findSerieById(id)
         .then(data => {
             if(data) {
@@ -42,17 +53,57 @@ const getSerieById = (req, res) => {
             }
         })
         .catch(err => {
+            console.error(`Error in getSerieById for id ${id}:`, err)
             responses.error({
-                status: 400,
-                data: err,
-                message: 'Something went wrong getting the serie',
+                status: 500,
+                message: 'Internal server error while getting the serie',
                 res
             })
         })
 }
 
 const postNewSerie = (req, res) => {
-    const serieObj = req.body
+    const serieObj = {
+        ...req.body,
+        coverUrl: req.file // Añadimos el archivo subido por multer
+    }
+
+    // Validación básica de campos requeridos
+    if (!serieObj.title) {
+        return responses.error({
+            status: 400,
+            message: 'Title is required',
+            res,
+            fields: {
+                title: 'String (1-255 chars)',
+                synopsis: 'String (optional)',
+                releaseYear: 'Integer (optional, min 1878)',
+                director: 'String (optional, 2-100 chars)',
+                classification: 'String (optional, 1-50 chars)',
+                rating: 'Float (optional, 0-10)',
+                coverUrl: 'File (image, optional)',
+                genres: 'Array of genre IDs (optional)'
+            }
+        })
+    }
+
+    // Validación de tipos de datos
+    if (serieObj.releaseYear && isNaN(serieObj.releaseYear)) {
+        return responses.error({
+            status: 400,
+            message: 'releaseYear must be a number',
+            res
+        })
+    }
+
+    if (serieObj.rating && (isNaN(serieObj.rating) || serieObj.rating < 0 || serieObj.rating > 10)) {
+        return responses.error({
+            status: 400,
+            message: 'rating must be a number between 0 and 10',
+            res
+        })
+    }
+
     seriesControllers.createSerie(serieObj)
         .then(data => {
             responses.success({
@@ -63,10 +114,19 @@ const postNewSerie = (req, res) => {
             })
         })
         .catch(err => {
+            console.error('Error in postNewSerie:', err)
+            
+            let errorMessage = 'Error occurred creating a new serie'
+            if (err.message.includes('upload cover')) {
+                errorMessage = 'Error uploading cover image'
+            } else if (err.message.includes('genres')) {
+                errorMessage = 'Invalid genre IDs provided'
+            }
+
             responses.error({
                 status: 400,
                 data: err,
-                message: 'Error occurred creating a new serie',
+                message: errorMessage,
                 res,
                 fields: {
                     title: 'String (1-255 chars)',
@@ -84,7 +144,36 @@ const postNewSerie = (req, res) => {
 
 const patchSerie = (req, res) => {
     const id = req.params.id
-    const serieObj = req.body
+    const serieObj = {
+        ...req.body,
+        coverUrl: req.file // Añadimos el archivo subido por multer si existe
+    }
+
+    // Validación básica del ID
+    if (!id || typeof id !== 'string') {
+        return responses.error({
+            status: 400,
+            message: 'Invalid serie ID provided',
+            res
+        })
+    }
+
+    // Validación de tipos de datos
+    if (serieObj.releaseYear && isNaN(serieObj.releaseYear)) {
+        return responses.error({
+            status: 400,
+            message: 'releaseYear must be a number',
+            res
+        })
+    }
+
+    if (serieObj.rating && (isNaN(serieObj.rating) || serieObj.rating < 0 || serieObj.rating > 10)) {
+        return responses.error({
+            status: 400,
+            message: 'rating must be a number between 0 and 10',
+            res
+        })
+    }
 
     seriesControllers.updateSerie(id, serieObj)
         .then(data => {
@@ -104,10 +193,19 @@ const patchSerie = (req, res) => {
             }
         })
         .catch(err => {
+            console.error(`Error in patchSerie for id ${id}:`, err)
+            
+            let errorMessage = 'Error occurred updating the serie'
+            if (err.message.includes('upload cover')) {
+                errorMessage = 'Error uploading cover image'
+            } else if (err.message.includes('genres')) {
+                errorMessage = 'Invalid genre IDs provided'
+            }
+
             responses.error({
                 status: 400,
                 data: err,
-                message: 'Error occurred updating the serie',
+                message: errorMessage,
                 res,
                 fields: {
                     title: 'String (1-255 chars)',
@@ -125,6 +223,15 @@ const patchSerie = (req, res) => {
 
 const deleteSerie = (req, res) => {
     const id = req.params.id
+
+    // Validación básica del ID
+    if (!id || typeof id !== 'string') {
+        return responses.error({
+            status: 400,
+            message: 'Invalid serie ID provided',
+            res
+        })
+    }
 
     seriesControllers.deleteSerie(id)
         .then(data => {
@@ -144,10 +251,11 @@ const deleteSerie = (req, res) => {
             }
         })
         .catch(err => {
+            console.error(`Error in deleteSerie for id ${id}:`, err)
             responses.error({
-                status: 400,
+                status: 500,
                 data: err,
-                message: 'Error occurred deleting the serie',
+                message: 'Internal server error while deleting the serie',
                 res
             })
         })
@@ -156,6 +264,26 @@ const deleteSerie = (req, res) => {
 const postGenreToSerie = (req, res) => {
     const serieId = req.params.id
     const { genreId } = req.body
+
+    // Validaciones básicas
+    if (!serieId || typeof serieId !== 'string') {
+        return responses.error({
+            status: 400,
+            message: 'Invalid serie ID provided',
+            res
+        })
+    }
+
+    if (!genreId || typeof genreId !== 'string') {
+        return responses.error({
+            status: 400,
+            message: 'Invalid genre ID provided',
+            res,
+            fields: {
+                genreId: 'UUID'
+            }
+        })
+    }
 
     seriesControllers.addGenreToSerie(serieId, genreId)
         .then(data => {
@@ -167,10 +295,17 @@ const postGenreToSerie = (req, res) => {
             })
         })
         .catch(err => {
+            console.error(`Error in postGenreToSerie for serie ${serieId} and genre ${genreId}:`, err)
+            
+            let errorMessage = 'Error occurred adding genre to serie'
+            if (err.name === 'SequelizeForeignKeyConstraintError') {
+                errorMessage = 'Invalid serie or genre ID'
+            }
+
             responses.error({
                 status: 400,
                 data: err,
-                message: 'Error occurred adding genre to serie',
+                message: errorMessage,
                 res,
                 fields: {
                     genreId: 'UUID'
@@ -182,6 +317,23 @@ const postGenreToSerie = (req, res) => {
 const deleteGenreFromSerie = (req, res) => {
     const serieId = req.params.id
     const genreId = req.params.genreId
+
+    // Validaciones básicas
+    if (!serieId || typeof serieId !== 'string') {
+        return responses.error({
+            status: 400,
+            message: 'Invalid serie ID provided',
+            res
+        })
+    }
+
+    if (!genreId || typeof genreId !== 'string') {
+        return responses.error({
+            status: 400,
+            message: 'Invalid genre ID provided',
+            res
+        })
+    }
 
     seriesControllers.removeGenreFromSerie(serieId, genreId)
         .then(data => {
@@ -201,10 +353,11 @@ const deleteGenreFromSerie = (req, res) => {
             }
         })
         .catch(err => {
+            console.error(`Error in deleteGenreFromSerie for serie ${serieId} and genre ${genreId}:`, err)
             responses.error({
-                status: 400,
+                status: 500,
                 data: err,
-                message: 'Error occurred removing genre from serie',
+                message: 'Internal server error while removing genre from serie',
                 res
             })
         })
@@ -213,8 +366,8 @@ const deleteGenreFromSerie = (req, res) => {
 module.exports = {
     getAllSeries,
     getSerieById,
-    postNewSerie: [upload, postNewSerie], // Agregamos el middleware de multer para la subida de imágenes
-    patchSerie: [upload, patchSerie],     // También para las actualizaciones
+    postNewSerie: [upload, postNewSerie],
+    patchSerie: [upload, patchSerie],
     deleteSerie,
     postGenreToSerie,
     deleteGenreFromSerie

@@ -32,7 +32,6 @@ const findSerieById = async (id) => {
 const createSerie = async (serieObj) => {
     let coverUrl = null;
     
-    // Subir imagen a Supabase si existe
     if (serieObj.coverUrl) {
         try {
             coverUrl = await uploadFile(serieObj.coverUrl, {
@@ -58,9 +57,42 @@ const createSerie = async (serieObj) => {
 
     const data = await Series.create(newSerie);
     
-    // Add genres if provided
+    // Manejo mejorado de géneros
     if (serieObj.genres && serieObj.genres.length > 0) {
-        await data.addGenres(serieObj.genres);
+        try {
+            // Verificar que los géneros existan antes de agregarlos
+            const existingGenres = await Genres.findAll({
+                where: {
+                    id: serieObj.genres
+                }
+            });
+
+            if (existingGenres.length !== serieObj.genres.length) {
+                throw new Error('Some genres do not exist');
+            }
+
+            // Crear las relaciones manualmente
+            await Promise.all(serieObj.genres.map(genreId => {
+                return SerieGenres.create({
+                    id: uuid.v4(),
+                    serie_id: data.id,
+                    genre_id: genreId
+                });
+            }));
+
+            // Recargar la serie con los géneros para devolverla completa
+            return await Series.findByPk(data.id, {
+                include: [{
+                    model: Genres,
+                    as: 'genres',
+                    through: { attributes: [] }
+                }]
+            });
+        } catch (err) {
+            // Si falla la creación de géneros, eliminar la serie creada
+            await Series.destroy({ where: { id: data.id } });
+            throw err;
+        }
     }
     
     return data;
@@ -72,17 +104,14 @@ const updateSerie = async (id, serieObj) => {
 
     let coverUrl = serie.coverUrl;
     
-    // Manejar actualización de la imagen de portada
     if (serieObj.coverUrl) {
         try {
-            // Eliminar la imagen anterior si existe
             if (coverUrl) {
                 await deleteFile(coverUrl).catch(err => {
                     console.error('Error deleting old cover:', err);
                 });
             }
             
-            // Subir nueva imagen
             coverUrl = await uploadFile(serieObj.coverUrl, {
                 folder: 'series-covers',
                 contentType: serieObj.coverUrl.mimetype
@@ -92,7 +121,6 @@ const updateSerie = async (id, serieObj) => {
             throw new Error('Failed to update cover image');
         }
     } else if (serieObj.coverUrl === null) {
-        // Si se envía explícitamente null, eliminar la imagen
         if (coverUrl) {
             await deleteFile(coverUrl).catch(err => {
                 console.error('Error deleting cover:', err);
@@ -113,12 +141,27 @@ const updateSerie = async (id, serieObj) => {
     if (updatedRows > 0) {
         const updatedSerie = await Series.findByPk(id);
         
-        // Update genres if provided
         if (serieObj.genres) {
-            await updatedSerie.setGenres(serieObj.genres);
+            // Eliminar relaciones existentes
+            await SerieGenres.destroy({ where: { serie_id: id } });
+            
+            // Crear nuevas relaciones
+            await Promise.all(serieObj.genres.map(genreId => {
+                return SerieGenres.create({
+                    id: uuid.v4(),
+                    serie_id: id,
+                    genre_id: genreId
+                });
+            }));
         }
         
-        return updatedSerie;
+        return await Series.findByPk(id, {
+            include: [{
+                model: Genres,
+                as: 'genres',
+                through: { attributes: [] }
+            }]
+        });
     }
     return null;
 };
@@ -127,12 +170,14 @@ const deleteSerie = async (id) => {
     const serie = await Series.findByPk(id);
     if (!serie) return 0;
 
-    // Eliminar la imagen de portada si existe
     if (serie.coverUrl) {
         await deleteFile(serie.coverUrl).catch(err => {
             console.error('Error deleting cover:', err);
         });
     }
+
+    // Eliminar primero las relaciones con géneros
+    await SerieGenres.destroy({ where: { serie_id: id } });
 
     const deletedRows = await Series.destroy({
         where: { id }
@@ -141,6 +186,28 @@ const deleteSerie = async (id) => {
 };
 
 const addGenreToSerie = async (serieId, genreId) => {
+    // Verificar que existan tanto la serie como el género
+    const [serie, genre] = await Promise.all([
+        Series.findByPk(serieId),
+        Genres.findByPk(genreId)
+    ]);
+
+    if (!serie || !genre) {
+        throw new Error('Serie or genre not found');
+    }
+
+    // Verificar si la relación ya existe
+    const existingRelation = await SerieGenres.findOne({
+        where: {
+            serie_id: serieId,
+            genre_id: genreId
+        }
+    });
+
+    if (existingRelation) {
+        return existingRelation;
+    }
+
     const data = await SerieGenres.create({
         id: uuid.v4(),
         serie_id: serieId,
