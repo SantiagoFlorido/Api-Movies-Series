@@ -9,12 +9,12 @@ const SerieGenres = db.define("serie_genres", {
     defaultValue: DataTypes.UUIDV4 
   },
   serie_id: {
-    type: DataTypes.UUID,
+    type: DataTypes.UUID, 
     allowNull: false,
     field: 'serie_id' 
   },
   genre_id: {
-    type: DataTypes.UUID, 
+    type: DataTypes.INTEGER,
     allowNull: false,
     field: 'genre_id'
   }
