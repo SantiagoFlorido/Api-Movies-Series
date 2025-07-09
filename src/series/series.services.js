@@ -63,8 +63,19 @@ const getSerieById = (req, res) => {
 }
 
 const postNewSerie = (req, res) => {
+    // Convertir géneros a números si existen
+    let genres = [];
+    if (req.body.genres) {
+        if (Array.isArray(req.body.genres)) {
+            genres = req.body.genres.map(id => Number(id));
+        } else if (typeof req.body.genres === 'string') {
+            genres = [Number(req.body.genres)];
+        }
+    }
+
     const serieObj = {
         ...req.body,
+        genres: genres.length > 0 ? genres : undefined,
         coverUrl: req.file // Añadimos el archivo subido por multer
     }
 
@@ -100,6 +111,15 @@ const postNewSerie = (req, res) => {
         return responses.error({
             status: 400,
             message: 'rating must be a number between 0 and 10',
+            res
+        })
+    }
+
+    // Validación de géneros
+    if (serieObj.genres && !serieObj.genres.every(g => Number.isInteger(g))) {
+        return responses.error({
+            status: 400,
+            message: 'All genre IDs must be integers',
             res
         })
     }
@@ -144,8 +164,20 @@ const postNewSerie = (req, res) => {
 
 const patchSerie = (req, res) => {
     const id = req.params.id
+    
+    // Convertir géneros a números si existen
+    let genres;
+    if (req.body.genres) {
+        if (Array.isArray(req.body.genres)) {
+            genres = req.body.genres.map(id => Number(id));
+        } else if (typeof req.body.genres === 'string') {
+            genres = [Number(req.body.genres)];
+        }
+    }
+
     const serieObj = {
         ...req.body,
+        genres: genres,
         coverUrl: req.file // Añadimos el archivo subido por multer si existe
     }
 
@@ -171,6 +203,15 @@ const patchSerie = (req, res) => {
         return responses.error({
             status: 400,
             message: 'rating must be a number between 0 and 10',
+            res
+        })
+    }
+
+    // Validación de géneros
+    if (serieObj.genres && !serieObj.genres.every(g => Number.isInteger(g))) {
+        return responses.error({
+            status: 400,
+            message: 'All genre IDs must be integers',
             res
         })
     }
@@ -274,18 +315,20 @@ const postGenreToSerie = (req, res) => {
         })
     }
 
-    if (!genreId || typeof genreId !== 'string') {
+    if (!genreId || isNaN(Number(genreId))) {
         return responses.error({
             status: 400,
             message: 'Invalid genre ID provided',
             res,
             fields: {
-                genreId: 'UUID'
+                genreId: 'Integer'
             }
         })
     }
 
-    seriesControllers.addGenreToSerie(serieId, genreId)
+    const numericGenreId = Number(genreId);
+
+    seriesControllers.addGenreToSerie(serieId, numericGenreId)
         .then(data => {
             responses.success({
                 status: 201,
@@ -295,7 +338,7 @@ const postGenreToSerie = (req, res) => {
             })
         })
         .catch(err => {
-            console.error(`Error in postGenreToSerie for serie ${serieId} and genre ${genreId}:`, err)
+            console.error(`Error in postGenreToSerie for serie ${serieId} and genre ${numericGenreId}:`, err)
             
             let errorMessage = 'Error occurred adding genre to serie'
             if (err.name === 'SequelizeForeignKeyConstraintError') {
@@ -308,7 +351,7 @@ const postGenreToSerie = (req, res) => {
                 message: errorMessage,
                 res,
                 fields: {
-                    genreId: 'UUID'
+                    genreId: 'Integer'
                 }
             })
         })
@@ -327,7 +370,7 @@ const deleteGenreFromSerie = (req, res) => {
         })
     }
 
-    if (!genreId || typeof genreId !== 'string') {
+    if (!genreId || isNaN(Number(genreId))) {
         return responses.error({
             status: 400,
             message: 'Invalid genre ID provided',
@@ -335,7 +378,9 @@ const deleteGenreFromSerie = (req, res) => {
         })
     }
 
-    seriesControllers.removeGenreFromSerie(serieId, genreId)
+    const numericGenreId = Number(genreId);
+
+    seriesControllers.removeGenreFromSerie(serieId, numericGenreId)
         .then(data => {
             if(data) {
                 responses.success({
@@ -353,7 +398,7 @@ const deleteGenreFromSerie = (req, res) => {
             }
         })
         .catch(err => {
-            console.error(`Error in deleteGenreFromSerie for serie ${serieId} and genre ${genreId}:`, err)
+            console.error(`Error in deleteGenreFromSerie for serie ${serieId} and genre ${numericGenreId}:`, err)
             responses.error({
                 status: 500,
                 data: err,
